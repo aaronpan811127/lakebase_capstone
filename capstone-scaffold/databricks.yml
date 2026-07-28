@@ -37,7 +37,7 @@ variables:
     default: "capstone_lb_ap"
   git_repo_url:
     description: GitHub repo the git-source app pulls from (your fork)
-    default: "https://github.com/jnshubham-db/gdc-apps-lakebase-capstone"
+    default: "https://github.com/aaronpan811127/lakebase_capstone"
   git_branch:
     description: Branch the git-source app tracks
     default: "feat/customer360-app"
