@@ -5,7 +5,10 @@ __pycache__/
 .databricks/
 .DS_Store
 node_modules/
-app/backend/static/
-dist/
 build/
 *.log
+capstone_app.egg-info/
+
+# T8: the built React bundle (backend/static) is committed so the deployed
+# git-source app runs `uvicorn backend.main:app` with no build step.
+# (Do NOT ignore app/backend/static.)

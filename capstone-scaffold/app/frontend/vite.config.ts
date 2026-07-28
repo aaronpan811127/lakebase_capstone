@@ -1,0 +1,23 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "node:path";
+
+// FastAPI serves the built bundle as static files from backend/static.
+// Vite dev server proxies /api -> uvicorn so `npm run dev` + `uvicorn` coexist.
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: path.resolve(__dirname, "../backend/static"),
+    emptyOutDir: true,
+    sourcemap: false,
+  },
+  server: {
+    port: 5173,
+    proxy: {
+      "/api": { target: "http://localhost:8000", changeOrigin: true },
+    },
+  },
+  resolve: {
+    alias: { "@": path.resolve(__dirname, "src") },
+  },
+});
