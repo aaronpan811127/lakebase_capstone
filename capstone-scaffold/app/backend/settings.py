@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     dashboard_id: str = ""
     genie_space_id: str = ""
 
+    # Forward-ETL job (bound via app.yaml valueFrom in prod)
+    forward_etl_job_id: str = ""
+
     # Misc
     parent_path: str = "/Workspace/Shared/capstone"
 
