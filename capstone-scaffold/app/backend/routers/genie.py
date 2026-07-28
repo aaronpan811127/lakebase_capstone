@@ -45,18 +45,26 @@ def _status_str(s) -> str | None:
     return getattr(s, "value", None) or str(s).split(".")[-1]
 
 
-def _msg_id(msg) -> str:
-    return getattr(msg, "message_id", None) or getattr(msg, "id", None)
+def _msg_id(obj) -> str | None:
+    return getattr(obj, "message_id", None) or getattr(obj, "id", None)
+
+
+def _nested_status(resp):
+    """start/create responses carry the message under `.message` (GenieMessage)."""
+    msg = getattr(resp, "message", None)
+    return getattr(msg, "status", None) if msg is not None else getattr(resp, "status", None)
 
 
 @router.post("/conversations", response_model=GenieMessageOut, operation_id="startGenie")
 def start_conversation(body: StartIn, request: Request):
     w = obo_client(request)
-    msg = w.genie.start_conversation(space_id=settings.genie_space_id, content=body.content).response
+    # Wait[GenieMessage].response is the initial GenieStartConversationResponse
+    # (ids + nested `.message`); the frontend polls get_message separately.
+    resp = w.genie.start_conversation(space_id=settings.genie_space_id, content=body.content).response
     return GenieMessageOut(
-        conversation_id=msg.conversation_id,
-        message_id=_msg_id(msg),
-        status=_status_str(msg.status),
+        conversation_id=resp.conversation_id,
+        message_id=_msg_id(resp),
+        status=_status_str(_nested_status(resp)),
     )
 
 
@@ -64,13 +72,13 @@ def start_conversation(body: StartIn, request: Request):
              response_model=GenieMessageOut, operation_id="sendGenieMessage")
 def create_message(conversation_id: str, body: MessageIn, request: Request):
     w = obo_client(request)
-    msg = w.genie.create_message(
+    resp = w.genie.create_message(
         space_id=settings.genie_space_id, conversation_id=conversation_id, content=body.content
     ).response
     return GenieMessageOut(
         conversation_id=conversation_id,
-        message_id=_msg_id(msg),
-        status=_status_str(msg.status),
+        message_id=_msg_id(resp),
+        status=_status_str(_nested_status(resp)),
     )
 
 
