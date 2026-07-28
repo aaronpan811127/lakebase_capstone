@@ -1,0 +1,55 @@
+# Databricks App runtime config (T6).
+#
+# `command` runs the FastAPI backend which serves the pre-built React bundle
+# from backend/static (committed — see T8), so there is no build step.
+#
+# `env` wires the static resource identifiers the backend reads via
+# backend/settings.py. FORWARD_ETL_JOB_ID is injected by the bundle at deploy
+# time via `valueFrom` referencing the job resource declared in resources/.
+#
+# `user_authorization` lists ONLY the two platform-allowed OBO scopes. The
+# platform auto-adds iam.current-user:read and iam.access-control:read. Any
+# other scope (dashboards, postgres, …) is rejected by the Apps API. OBO also
+# requires the workspace "User authorization (preview)" toggle to be ON.
+
+command:
+  - uvicorn
+  - backend.main:app
+  - --host
+  - "0.0.0.0"
+  - --port
+  - "8000"
+
+env:
+  - name: DATABRICKS_HOST
+    value: "https://fe-sandbox-lakebase-capstone.cloud.databricks.com"
+  - name: CAPSTONE_CATALOG
+    value: "lakebase_capstone_catalog"
+  - name: CAPSTONE_SCHEMA
+    value: "gold"
+  - name: WAREHOUSE_ID
+    value: "70a883358c1e008c"
+  - name: PGHOST
+    value: "ep-floral-mode-d17a5gyd.database.us-west-2.cloud.databricks.com"
+  - name: PGDATABASE
+    value: "capstone_db"
+  - name: PG_INSTANCE_NAME
+    value: "capstone-pg"
+  - name: PG_UC_CATALOG
+    value: "capstone_lb_ap"
+  - name: SECRET_SCOPE
+    value: "capstone-aaron-pan"
+  - name: PARENT_PATH
+    value: "/Workspace/Shared/capstone"
+  - name: DASHBOARD_ID
+    value: "01f18a76fd9119c6b0549c0470e57851"
+  - name: GENIE_SPACE_ID
+    value: "01f18a7701a51b8287f70dc100c13a2a"
+  # Bundle-injected: resolves to the forward-ETL job id declared in resources/jobs.yml
+  - name: FORWARD_ETL_JOB_ID
+    valueFrom: "forward_etl_job"
+
+user_authorization:
+  scopes:
+    - sql
+    - dashboards.genie

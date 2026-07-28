@@ -1,0 +1,59 @@
+# Databricks Asset Bundle — Customer 360 (T8).
+#
+# Deploys the app as a GIT-SOURCE app: the workspace pulls source from the
+# declared GitHub repo + branch on every `bundle run` (see resources/app.yml).
+# Source-code-path uploads are explicitly NOT used.
+#
+# Local inner loop (no CI):
+#   databricks bundle validate --target prod --profile lakebase-capstone
+#   databricks bundle deploy   --target prod --profile lakebase-capstone
+#   databricks bundle run customer360 --target prod --profile lakebase-capstone
+#
+# `bundle run` makes Databricks pull the latest commit from git_branch and
+# restart the app. After the first deploy, register a git credential bound to
+# the app's service principal (see resources/app.yml notes / T8).
+
+bundle:
+  name: customer360
+
+variables:
+  warehouse_id:
+    description: Serverless SQL warehouse id
+    default: "70a883358c1e008c"
+  lakebase_instance:
+    description: Lakebase instance (database) name
+    default: "capstone-pg"
+  dashboard_id:
+    description: AI/BI dashboard id to embed
+    default: "01f18a76fd9119c6b0549c0470e57851"
+  genie_space_id:
+    description: Genie space id
+    default: "01f18a7701a51b8287f70dc100c13a2a"
+  catalog:
+    description: Unity Catalog catalog holding gold Delta tables
+    default: "lakebase_capstone_catalog"
+  pg_uc_catalog:
+    description: UC catalog that fronts the Lakebase instance
+    default: "capstone_lb_ap"
+  git_repo_url:
+    description: GitHub repo the git-source app pulls from (your fork)
+    default: "https://github.com/jnshubham-db/gdc-apps-lakebase-capstone"
+  git_branch:
+    description: Branch the git-source app tracks
+    default: "feat/customer360-app"
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://fe-sandbox-lakebase-capstone.cloud.databricks.com
+
+  prod:
+    mode: production
+    workspace:
+      host: https://fe-sandbox-lakebase-capstone.cloud.databricks.com
+      root_path: /Workspace/Shared/capstone/.bundle/${bundle.name}/${bundle.target}

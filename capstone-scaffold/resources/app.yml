@@ -1,0 +1,64 @@
+# Git-source app resource (T8).
+#
+# `git_repository` + `git_source` make this a git-source app: Databricks pulls
+# `source_code_path` from the given repo/branch on every `bundle run`. We do
+# NOT set an app-level `source_code_path` — DABs rejects having both
+# git_source and source_code_path.
+#
+# `resources` binds the app to the warehouse / Lakebase database / Genie space /
+# forward-ETL job so the runtime gets their ids (and FORWARD_ETL_JOB_ID via the
+# app.yaml `valueFrom: forward_etl_job`).
+#
+# `user_api_scopes` mirror app.yaml — only the two platform-allowed OBO scopes.
+#
+# After the FIRST `bundle deploy`, bind a GitHub credential to the app SP so the
+# workspace can pull private source (run as your normal profile):
+#   APP_SP=$(databricks apps get customer360 --profile lakebase-capstone \
+#             | jq -r .service_principal_id)
+#   databricks git-credentials create --json '{
+#     "git_provider": "gitHub", "git_email": "<bot-email>",
+#     "personal_access_token": "<github_pat>", "principal_id": '"$APP_SP"',
+#     "name": "GitHub credentials for app SP" }' --profile lakebase-capstone
+# then re-run `databricks bundle run customer360 --target prod`.
+
+resources:
+  apps:
+    customer360:
+      name: customer360
+      description: "Customer 360 — Databricks Apps + Lakebase capstone"
+
+      git_repository:
+        provider: github
+        url: ${var.git_repo_url}
+
+      git_source:
+        branch: ${var.git_branch}
+        source_code_path: capstone-scaffold/app
+
+      user_api_scopes:
+        - sql
+        - dashboards.genie
+
+      resources:
+        - name: sql_warehouse
+          description: Warehouse for OBO metrics + external API reads
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: database
+          description: Lakebase instance for synced reads + staging writes
+          database:
+            instance_name: ${var.lakebase_instance}
+            database_name: capstone_db
+            permission: CAN_CONNECT_AND_CREATE
+        - name: genie_space
+          description: Genie space for the chat widget
+          genie_space:
+            name: ${var.genie_space_id}
+            space_id: ${var.genie_space_id}
+            permission: CAN_RUN
+        - name: forward_etl_job
+          description: Dedup-into-gold forward-ETL job triggered from Reports
+          job:
+            id: ${resources.jobs.forward_etl_job.id}
+            permission: CAN_MANAGE_RUN

@@ -1,0 +1,43 @@
+# Lakebase synced-table specs (T1, declarative — mirrors notebook 03).
+#
+# Declaring the synced tables in the bundle keeps them from drifting from the
+# manual psycopg/SDK creation. Sync modes per the reflection:
+#   customers_synced / transactions_synced → SNAPSHOT continuous (live reads)
+#   products_synced                        → TRIGGERED (slow-changing catalog)
+#
+# The writable staging tables (customer_notes_staging,
+# customer_segment_overrides_staging, customer_audit_log) are plain Postgres
+# DDL created in notebook 03 — they are not UC synced tables, so they are not
+# declared here.
+
+resources:
+  synced_database_tables:
+    customers_synced:
+      name: ${var.pg_uc_catalog}.public.customers_synced
+      database_instance_name: ${var.lakebase_instance}
+      logical_database_name: capstone_db
+      spec:
+        source_table_full_name: ${var.catalog}.gold.customers
+        primary_key_columns:
+          - customer_id
+        scheduling_policy: CONTINUOUS
+
+    transactions_synced:
+      name: ${var.pg_uc_catalog}.public.transactions_synced
+      database_instance_name: ${var.lakebase_instance}
+      logical_database_name: capstone_db
+      spec:
+        source_table_full_name: ${var.catalog}.gold.transactions
+        primary_key_columns:
+          - transaction_id
+        scheduling_policy: CONTINUOUS
+
+    products_synced:
+      name: ${var.pg_uc_catalog}.public.products_synced
+      database_instance_name: ${var.lakebase_instance}
+      logical_database_name: capstone_db
+      spec:
+        source_table_full_name: ${var.catalog}.gold.products
+        primary_key_columns:
+          - product_id
+        scheduling_policy: TRIGGERED

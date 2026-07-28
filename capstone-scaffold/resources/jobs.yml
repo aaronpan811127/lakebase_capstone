@@ -1,0 +1,20 @@
+# Forward-ETL job (T7 Pattern B).
+#
+# Runs the dedup-into-gold notebook on serverless compute. Triggered on demand
+# from the Reports page via POST /api/jobs/run-forward-etl (SP client). The
+# bundle exposes this job's id to the app through resources/app.yml
+# (`forward_etl_job`), which app.yaml maps to FORWARD_ETL_JOB_ID.
+
+resources:
+  jobs:
+    forward_etl_job:
+      name: customer360-forward-etl
+      description: "Dedup lb_*_history SCD2 → gold.customer_notes (idempotent MERGE)"
+      tasks:
+        - task_key: dedup_into_gold
+          notebook_task:
+            notebook_path: ../lakebase/forward_etl/lakehouse_sync/dedup_into_gold.py
+            base_parameters:
+              gold_catalog: ${var.catalog}
+      queue:
+        enabled: true
