@@ -87,19 +87,22 @@ spark.sql(f"""
 
 # COMMAND ----------
 
-from pyspark.sql import Row
+from pyspark.sql.types import StructType, StructField, StringType, TimestampType
 
 
 def promote(staging_table: str, gold_table: str, pk: str, id_col: str, cols: list[str]):
     """Read processed=false rows, MERGE into gold on `pk`, mark them processed.
 
-    `id_col` is the staging PK used in the WHERE ... IN (...) update; `pk` is the
-    business key the gold MERGE matches on (same value for notes; customer_id for
-    the idempotent segment overrides).
+    `id_col` is the staging PK used to mark rows processed; `pk` is the business
+    key the gold MERGE matches on (same value for notes; customer_id for the
+    idempotent segment overrides). UUID/other PG types are cast to text in SQL so
+    Spark gets a clean, explicitly-typed frame (no type inference on UUID/JSONB).
     """
+    # Select every projected column cast to text, plus the staging id as text.
+    select_cols = ", ".join(f"{c}::text AS {c}" if c != "created_at" else c for c in cols)
     with conn.cursor() as cur:
         cur.execute(
-            f"SELECT {', '.join(cols)}, {id_col}::text AS _sid "
+            f"SELECT {select_cols}, {id_col}::text AS _sid "
             f"FROM {staging_table} WHERE processed = false"
         )
         rows = cur.fetchall()
@@ -109,8 +112,16 @@ def promote(staging_table: str, gold_table: str, pk: str, id_col: str, cols: lis
         print(f"{staging_table}: no unprocessed rows — no-op")
         return 0
 
-    sids = [r[colnames.index("_sid")] for r in rows]
-    df = spark.createDataFrame([Row(**dict(zip(colnames, r))) for r in rows]).drop("_sid")
+    sid_idx = colnames.index("_sid")
+    sids = [r[sid_idx] for r in rows]
+
+    # Explicit schema: all string except created_at (timestamp). Drop _sid.
+    fields = [
+        StructField(c, TimestampType() if c == "created_at" else StringType(), True)
+        for c in cols
+    ]
+    data = [tuple(r[colnames.index(c)] for c in cols) for r in rows]
+    df = spark.createDataFrame(data, StructType(fields))
     df.createOrReplaceTempView("staged")
 
     set_clause = ", ".join(f"t.{c} = s.{c}" for c in cols)
