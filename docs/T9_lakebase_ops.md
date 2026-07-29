@@ -13,7 +13,7 @@ change, and the mechanism behind point-in-time restore (PITR).
 
 ### What was done (live)
 
-1. **Recorded a pre-branch timestamp** `T0 = 2026-07-28T23:24:59Z`.
+1. **Recorded a pre-branch timestamp** `T0 = 2026-07-29T05:23:12Z`.
 2. **Created a child branch** from `capstone-pg` at the current head:
    ```bash
    databricks database create-database-instance --json '{
@@ -23,7 +23,7 @@ change, and the mechanism behind point-in-time restore (PITR).
    }' --profile lakebase-capstone
    ```
    Branch came up `AVAILABLE` with its own DNS
-   (`ep-ancient-scene-d189h0wu...`) and `parent_instance_ref.uid` pointing at
+   (`ep-calm-hill-d1nti7zt...`) and `parent_instance_ref.uid` pointing at
    the parent — confirming the fork.
 3. **Ran the destructive delete on the branch only:**
    ```sql
@@ -33,8 +33,8 @@ change, and the mechanism behind point-in-time restore (PITR).
 
    | table | parent `capstone-pg` | branch `capstone-pg-branch` |
    |---|---|---|
-   | `customer_notes_staging` before DELETE | 1 | 1 (inherited at branch point) |
-   | `customer_notes_staging` after DELETE | **1 (unchanged)** | **0 (deleted)** |
+   | `customer_notes_staging` before DELETE | 2 | 2 (inherited at branch point) |
+   | `customer_notes_staging` after DELETE | **2 (unchanged)** | **0 (deleted)** |
 
    The parent is untouched — exactly the safety property PITR relies on.
 5. **Cleaned up** the branch: `databricks database delete-database-instance
@@ -53,7 +53,7 @@ databricks database create-database-instance --json '{
   "capacity": "CU_1",
   "parent_instance_ref": {
     "name": "capstone-pg",
-    "branch_time": "2026-07-28T23:24:59Z"
+    "branch_time": "2026-07-29T05:23:12Z"
   }
 }' --profile lakebase-capstone
 ```
@@ -62,27 +62,25 @@ databricks database create-database-instance --json '{
 window. The restored instance contains the data as of `T0` — i.e. before the
 `DELETE` — which is the PITR guarantee.
 
-> **Screenshots:** branch creation (Lakebase UI → Branches), the branch row
-> count = 0 vs parent = 1 after DELETE, and the restored-instance row count.
-> _(Placeholder — capture from the workspace UI.)_
+> **Screenshot:** `t9_screenshots/t9a_branch_created.png` — Lakebase Provisioned
+> instances list showing both `capstone-pg` (parent) and `capstone-pg-branch`
+> (child), both Available.
 
 ---
 
 ## T9b — Query insights (index impact)
 
 **Scenario:** the audit-log lookup `WHERE actor_email = …` is a Seq Scan without
-an index. Seeded `customer_audit_log` to ~20k rows and ran the query 100×.
+an index. Seeded `customer_audit_log` to ~20k rows and measured the query.
 
-Client-side wall-clock latency is dominated by the ~250 ms laptop→us-west-2
-round trip, which masks the query cost, so the improvement is reported as
-**server-side execution time** via `EXPLAIN (ANALYZE, TIMING)` (30 samples each).
+Full captured output: `t9_screenshots/t9b_query_insights.txt` (20,005 rows).
 
 ### Before — no index
 
 ```
 Seq Scan on customer_audit_log
-  (cost=0.00..497.04 rows=400 width=30) (actual time=0.028..5.013 rows=400)
-exec p50 = 5.38 ms   p95 = 8.13 ms
+  (cost=0.00..457.06 rows=400 width=30) (actual time=0.027..5.466 rows=400)
+server-side exec  p50 = 5.47 ms   p95 = 8.01 ms
 ```
 
 ### Fix
@@ -96,9 +94,8 @@ ANALYZE customer_audit_log;
 
 ```
 Bitmap Heap Scan on customer_audit_log
-  (cost=7.39..268.99 rows=400 width=30) (actual time=0.200..0.881 rows=400)
-  Recheck Cond: ((actor_email)::text = 'user7@example.com')
-exec p50 = 1.39 ms   p95 = 1.55 ms
+  (cost=7.39..220.84 rows=400 width=30) (actual time=0.198..0.830 rows=400)
+server-side exec  p50 = 1.27 ms   p95 = 1.33 ms
 ```
 
 ### Result
@@ -106,12 +103,15 @@ exec p50 = 1.39 ms   p95 = 1.55 ms
 | metric | before (Seq Scan) | after (index) | improvement |
 |---|---|---|---|
 | plan | Seq Scan | Bitmap Heap Scan (idx_audit_actor) | — |
-| exec p50 | 5.38 ms | 1.39 ms | 3.9× |
-| **exec p95** | **8.13 ms** | **1.55 ms** | **5.3×** |
+| exec p50 | 5.47 ms | 1.27 ms | 4.3× |
+| **exec p95** | **8.01 ms** | **1.33 ms** | **6.0×** |
 
 The planner switched from a full Seq Scan to an index-backed Bitmap Heap Scan
-and server-side p95 dropped **5.3×**. The index (`idx_audit_actor`) is kept in
+and server-side p95 dropped **6.0×**. The index (`idx_audit_actor`) is kept in
 the schema.
 
-> **Screenshots:** Lakebase Query Performance UI showing the query before/after,
-> or `pg_stat_statements` mean/p95 rows. _(Placeholder — capture from the UI.)_
+> Client-side wall-clock is dominated by the ~250 ms laptop→us-west-2 round trip,
+> which masks the query cost, so the improvement is reported as **server-side
+> execution time** via `EXPLAIN (ANALYZE, TIMING)` (30 samples each).
+> `pg_stat_statements` is not installed on this instance, so EXPLAIN ANALYZE is
+> the query-insights source.

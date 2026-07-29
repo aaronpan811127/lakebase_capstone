@@ -1,0 +1,13 @@
+=== T9b · Query insights: customer_audit_log WHERE actor_email = ... ===
+
+rows in customer_audit_log: 20005
+
+BEFORE (no index):
+  ->  Seq Scan on customer_audit_log  (cost=0.00..457.06 rows=400 width=30) (actual time=0.027..5.466 rows=400 loops=1)
+  server-side exec  p50=5.467ms  p95=8.013ms
+
+AFTER (CREATE INDEX idx_audit_actor ON customer_audit_log(actor_email)):
+  ->  Bitmap Heap Scan on customer_audit_log  (cost=7.39..220.84 rows=400 width=30) (actual time=0.198..0.830 rows=400 loops=1)
+  server-side exec  p50=1.268ms  p95=1.329ms
+
+RESULT: server-side exec p95 8.013ms -> 1.329ms  (6.0x faster)
