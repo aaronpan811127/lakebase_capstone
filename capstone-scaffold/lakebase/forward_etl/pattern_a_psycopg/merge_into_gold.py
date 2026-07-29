@@ -17,11 +17,10 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install --quiet "psycopg[binary]>=3.2"
-
-# COMMAND ----------
-
-dbutils.library.restartPython()
+# MAGIC %md
+# MAGIC `psycopg[binary]` is provided via the serverless job environment
+# MAGIC (see resources/jobs.yml `environments`), so no in-notebook `%pip` /
+# MAGIC `restartPython()` is needed — those are unreliable on serverless.
 
 # COMMAND ----------
 

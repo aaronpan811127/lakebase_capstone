@@ -22,6 +22,15 @@ resources:
             base_parameters:
               gold_catalog: ${var.catalog}
               instance_name: ${var.lakebase_instance}
-              database_name: capstone_db
+              database_name: ${var.pg_database}
+          # Serverless notebook task uses this environment for extra deps
+          # (psycopg) instead of unreliable in-notebook %pip + restartPython.
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "2"
+            dependencies:
+              - psycopg[binary]>=3.2
       queue:
         enabled: true
