@@ -32,5 +32,7 @@ resources:
             environment_version: "2"
             dependencies:
               - psycopg[binary]>=3.2
+              # serverless bundles an older SDK without w.database (Lakebase API)
+              - databricks-sdk>=0.81
       queue:
         enabled: true
