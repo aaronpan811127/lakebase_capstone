@@ -186,10 +186,3 @@ segment override · Genie start (OBO) · external M2M 401→200.
   method configured". Fixed with `auth_type="pat"` in `obo_client`.
 - **App SP had no Lakebase grants** (fresh PG role) — ran the T1 grant step.
 
-### Remaining (manual / recording)
-- Workspace toggles: **User authorization (preview)** ON (OBO consent);
-  allowlist the app host under **Embed Dashboard** (T4) if the iframe is blocked.
-- T9 UI screenshots; 3-min demo recording.
-
-> **Reminder:** rotate/revoke the GitHub PAT (git credential) **and** the app-SP
-> OAuth secret minted for the M2M test — both appeared in shell transcripts.
