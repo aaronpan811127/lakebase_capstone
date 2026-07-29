@@ -14,8 +14,11 @@ dependencies = [
     "cachetools>=5.5",
 ]
 
-[tool.uv]
-dev-dependencies = [
+# Dev tools live in an optional extra so the Apps build (`uv sync`) does NOT
+# download them — fewer wheels = fewer chances to hit a flaky pypi-proxy timeout.
+# Install locally with: uv sync --extra dev
+[project.optional-dependencies]
+dev = [
     "pytest>=8.0",
     "ruff>=0.6",
 ]
