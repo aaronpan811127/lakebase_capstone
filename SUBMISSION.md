@@ -58,7 +58,9 @@ Verified live (serverless run, deps via the job `environments` spec — psycopg 
 databricks-sdk — not in-notebook `%pip`): a run promoted **3 notes + 1 override**
 into gold (`gold.customer_notes=3`, `gold.customer_segment_overrides=1`, confirmed
 by warehouse query), flipped all staged rows to `processed=true`, and a second run
-was a clean no-op (0 unprocessed).
+was a clean no-op (0 unprocessed). Screenshots of the promoted rows in Catalog
+Explorer: `docs/t7_screenshots/` (`gold.customer_notes` overview + sample,
+`gold.customer_segment_overrides` sample).
 
 **Why not Pattern B (Lakehouse Sync / Lakebase CDF):** that feature requires an
 **Autoscaling Postgres 17** instance and is UI-only Public Preview; `capstone-pg`
