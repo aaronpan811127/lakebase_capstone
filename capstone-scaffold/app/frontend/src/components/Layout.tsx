@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/api/client";
 import type { MeOut } from "@/api/types";
 import GenieWidget from "@/components/GenieWidget";
+import { useTheme } from "@/hooks/theme";
 
 const NAV = [
   { to: "/customers", label: "Customers", icon: "👥" },
@@ -18,6 +19,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     staleTime: 5 * 60_000,
   });
   const workspace = me?.workspace_host?.replace(/^https?:\/\//, "").split(".")[0] ?? "workspace";
+  const [theme, toggleTheme] = useTheme();
 
   return (
     <div className="shell">
@@ -47,6 +49,14 @@ export default function Layout({ children }: { children: ReactNode }) {
         <header className="topbar">
           <div className="topbar-spacer" />
           <div className="topbar-right">
+            <button
+              className="theme-toggle"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
             <span className="ws-badge">{workspace}</span>
             <span className="user-email">{me?.email ?? "…"}</span>
           </div>
