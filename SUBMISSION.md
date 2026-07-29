@@ -124,17 +124,37 @@ Full detail + screenshot placeholders: `docs/T9_lakebase_ops.md`.
 
 ---
 
-## Deploy (T8) — remaining manual steps
+## Deploy (T8) — status
 
-These require workspace-admin actions and are documented in
-`capstone-scaffold/resources/app.yml`:
+Completed:
+1. ✅ `databricks bundle deploy --target prod` — app resource, forward-ETL job,
+   and 3 synced tables created.
+2. ✅ GitHub credential bound to the app SP (`git-credentials create` with
+   `principal_id=78783178816599`) — the git-source pull now works.
+3. ✅ `databricks bundle run customer360 --target prod` — **git-source pull
+   confirmed working**: the build clones `aaronpan811127/lakebase_capstone`
+   (branch `feat/customer360-app`, path `capstone-scaffold/app`) and builds the
+   package successfully.
 
-1. `databricks bundle deploy --target prod --profile lakebase-capstone`
-2. Register a GitHub credential bound to the app SP (`git-credentials create`
-   with `principal_id` = app `service_principal_id`).
-3. `databricks bundle run customer360 --target prod` → pulls latest commit,
-   restarts the app; Deployments tab should show the matching commit SHA.
+**Blocked — Databricks Apps build-proxy outage (transient, infra-side):** the
+`uv sync` step consistently fails at ~40s with `operation timed out` fetching a
+(different, random) wheel from `pypi-proxy.dev.databricks.com` — `psycopg-pool`,
+`starlette`, `fastapi`, `anyio`, `websockets`, `google-auth`, `click`, … across
+13 attempts on two networks. Mitigations applied to shrink the download
+(dev-deps → optional extra; dropped `uvicorn[standard]`; pinned `anyio`) did not
+help because the proxy isn't caching between builds and one stalled wheel fails
+the whole install. **The app config is correct and will deploy as soon as the
+proxy recovers** — just re-run `databricks bundle run customer360 --target prod
+--profile lakebase-capstone`.
+
+App URL (live once deploy succeeds): https://customer360-7474659854906313.aws.databricksapps.com
+
+### Remaining after a green deploy
 4. Grant the app SP CAN_USE on the app + warehouse/gold SELECT, then run
-   `examples/m2m_test.py`.
+   `examples/m2m_test.py` and paste output above.
 5. Workspace toggles: **User authorization (preview)** ON (OBO); allowlist the
    app host under **Embed Dashboard** (T4).
+6. T9 UI screenshots; 3-min demo recording.
+
+> **Reminder:** rotate the GitHub PAT used for the git credential — it appeared
+> in a shell transcript during setup.
