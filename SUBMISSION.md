@@ -96,18 +96,33 @@ WARNING.
 
 ---
 
-## T3a — M2M test output
+## T3a — M2M test output (against the deployed app)
 
 `examples/m2m_test.py` runs the SP `client_credentials` flow → OAuth bearer →
-`GET /api/external/customers/{id}` against the deployed app. Locally the
-endpoint was verified: **401 without a bearer, 200 + customer JSON with an OBO
-token** (reads gold via the warehouse, never Lakebase/SP fallback). The full
-deployed-app M2M run is pending T8 deploy + SP grants (CAN_USE on the app,
-warehouse + gold SELECT on the SP) — paste `m2m_test.py` stdout here after.
+`GET /api/external/customers/{id}` against the **deployed** app. The Apps proxy
+validates the bearer and forwards `X-Forwarded-Access-Token`; the handler reads
+gold via the SQL warehouse as the caller (never Lakebase, never app-SP fallback).
 
 ```
-# (paste examples/m2m_test.py output after deploy)
+→ minting OAuth bearer via client_credentials for SP 439c27fa-1aba-4091-939a-5d7a5f303289
+  bearer acquired: eyJraWQiOiJqblJx… (828 chars)
+→ GET https://customer360-7474659854906313.aws.databricksapps.com/api/external/customers/C0003600
+← HTTP 200
+{
+  "customer_id": "C0003600",
+  "first_name": "James", "last_name": "Chen",
+  "email": "james.chen3600@example.com", "country": "GB", "city": "New York",
+  "segment_id": "S5", "lifetime_value": 69000.23, "churn_score": 0.506,
+  "recent_transactions": [ … 10 items … ]
+}
+
+PASS: 200 + customer JSON (10 recent transactions)
 ```
+
+Setup for the run: minted an OAuth secret for the app SP
+(`service-principal-secrets-proxy create`), granted the SP **CAN_USE on the
+app** + **CAN_USE on the warehouse** + **USE CATALOG / USE SCHEMA / SELECT** on
+`lakebase_capstone_catalog.gold`.
 
 ---
 
@@ -124,37 +139,41 @@ Full detail + screenshot placeholders: `docs/T9_lakebase_ops.md`.
 
 ---
 
-## Deploy (T8) — status
+## Deploy (T8) — ✅ DEPLOYED & VERIFIED
 
-Completed:
-1. ✅ `databricks bundle deploy --target prod` — app resource, forward-ETL job,
-   and 3 synced tables created.
-2. ✅ GitHub credential bound to the app SP (`git-credentials create` with
-   `principal_id=78783178816599`) — the git-source pull now works.
-3. ✅ `databricks bundle run customer360 --target prod` — **git-source pull
-   confirmed working**: the build clones `aaronpan811127/lakebase_capstone`
-   (branch `feat/customer360-app`, path `capstone-scaffold/app`) and builds the
-   package successfully.
+**Live app:** https://customer360-7474659854906313.aws.databricksapps.com — state
+`RUNNING`, deployment `SUCCEEDED`.
 
-**Blocked — Databricks Apps build-proxy outage (transient, infra-side):** the
-`uv sync` step consistently fails at ~40s with `operation timed out` fetching a
-(different, random) wheel from `pypi-proxy.dev.databricks.com` — `psycopg-pool`,
-`starlette`, `fastapi`, `anyio`, `websockets`, `google-auth`, `click`, … across
-13 attempts on two networks. Mitigations applied to shrink the download
-(dev-deps → optional extra; dropped `uvicorn[standard]`; pinned `anyio`) did not
-help because the proxy isn't caching between builds and one stalled wheel fails
-the whole install. **The app config is correct and will deploy as soon as the
-proxy recovers** — just re-run `databricks bundle run customer360 --target prod
---profile lakebase-capstone`.
+1. ✅ `databricks bundle deploy --target prod` — app, forward-ETL job, 3 synced tables.
+2. ✅ GitHub credential bound to the app SP (`git-credentials create`,
+   `principal_id=78783178816599`) — git-source pull works.
+3. ✅ `databricks bundle run customer360 --target prod` — **git-source app**:
+   `git_source.resolved_commit` matches local HEAD, `source_code_path
+   capstone-scaffold/app`, branch `feat/customer360-app` (not a workspace upload).
+4. ✅ Granted the app SP Lakebase role (`439c27fa-…`) SELECT on synced tables +
+   SELECT/INSERT/UPDATE on staging + `ALTER DEFAULT PRIVILEGES`; CAN_USE on app +
+   warehouse + gold SELECT for M2M.
 
-App URL (live once deploy succeeds): https://customer360-7474659854906313.aws.databricksapps.com
+**Verified on the deployed app** (through the Apps proxy, real OBO headers):
+`/api/health` 200 · SPA index 200 · `/api/customers` (10k, SP) · detail + txns ·
+`/api/customers/{id}/metrics` (warehouse OBO) · note write + audit · idempotent
+segment override · Genie start (OBO) · external M2M 401→200.
 
-### Remaining after a green deploy
-4. Grant the app SP CAN_USE on the app + warehouse/gold SELECT, then run
-   `examples/m2m_test.py` and paste output above.
-5. Workspace toggles: **User authorization (preview)** ON (OBO); allowlist the
-   app host under **Embed Dashboard** (T4).
-6. T9 UI screenshots; 3-min demo recording.
+### Root-cause notes (bugs found & fixed via live deploy)
+- **uv.lock pinned an internal index.** The developer's global uv config uses
+  `pypi-proxy.dev.databricks.com` as default index, so `uv lock` baked that
+  unreachable-from-build host into the lock → `uv sync` timed out per-wheel.
+  Fixed by pinning `pypi.org` in `pyproject.toml` and rewriting the lock URLs to
+  public PyPI / `files.pythonhosted.org`.
+- **OBO client double-auth.** In the Apps runtime the env carries the SP's OAuth
+  creds, so `WorkspaceClient(token=…)` raised "more than one authorization
+  method configured". Fixed with `auth_type="pat"` in `obo_client`.
+- **App SP had no Lakebase grants** (fresh PG role) — ran the T1 grant step.
 
-> **Reminder:** rotate the GitHub PAT used for the git credential — it appeared
-> in a shell transcript during setup.
+### Remaining (manual / recording)
+- Workspace toggles: **User authorization (preview)** ON (OBO consent);
+  allowlist the app host under **Embed Dashboard** (T4) if the iframe is blocked.
+- T9 UI screenshots; 3-min demo recording.
+
+> **Reminder:** rotate/revoke the GitHub PAT (git credential) **and** the app-SP
+> OAuth secret minted for the M2M test — both appeared in shell transcripts.

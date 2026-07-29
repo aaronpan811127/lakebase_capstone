@@ -25,7 +25,8 @@ def get_bearer() -> str:
 
     cfg = Config(host=host, client_id=client_id, client_secret=client_secret)
     provider = oauth_service_principal(cfg)
-    return provider().token().access_token
+    # OAuthCredentialsProvider exposes the minted access token via oauth_token().
+    return provider.oauth_token().access_token
 
 
 if __name__ == "__main__":
