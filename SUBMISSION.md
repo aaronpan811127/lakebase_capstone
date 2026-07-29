@@ -4,7 +4,7 @@ A customer-success web app for Acme Retail: React + FastAPI on Databricks Apps,
 backed by Lakebase (synced reads + staging writes) and the SQL warehouse
 (OBO metrics + external M2M).
 
-- **Repo:** https://github.com/jnshubham-db/gdc-apps-lakebase-capstone (branch `feat/customer360-app`)
+- **Repo:** https://github.com/aaronpan811127/lakebase_capstone (branch `feat/customer360-app`)
 - **App:** `customer360` (deploy via `databricks bundle run customer360 --target prod`)
 - **Workspace:** `fe-sandbox-lakebase-capstone` · catalog `lakebase_capstone_catalog.gold` · Lakebase `capstone-pg`
 
@@ -21,7 +21,7 @@ backed by Lakebase (synced reads + staging writes) and the SQL warehouse
 | T4 | Dashboard embed | ✅ iframe renders w/ correct embed URL |
 | T5 | Genie conversation endpoints + floating widget | ✅ verified end-to-end (answer + SQL + rows) |
 | T6 | `app.yaml` (env, command, OBO scopes) | ✅ |
-| T7 | Forward-ETL (Lakehouse Sync Pattern B) + dedup job + jobs API | ✅ code + notebooks; live run after deploy |
+| T7 | Forward-ETL (Pattern A: psycopg + MERGE) + job + jobs API | ✅ verified — live run promotes staging → gold, idempotent |
 | T8 | DABs git-source app + resources | ✅ `bundle validate --target prod` passes |
 | T9 | Branch+PITR, query insights | ✅ done live — see `docs/T9_lakebase_ops.md` |
 
@@ -45,13 +45,21 @@ warehouse via OBO**, so warehouse RLS/audit reflect the calling user.
 
 ## Reflection — forward-ETL pattern
 
-Chose **Pattern B (Lakehouse Sync)**: Lakebase natively replicates the writable
-staging tables into UC-managed `lb_*_history` Delta tables as SCD2 (no external
-pipeline/compute — powered by `wal2delta`). A small **dedup-into-gold** job
-(`dedup_into_gold.py`) collapses the SCD2 history to the latest surviving row
-per PK and `MERGE`s into `gold.customer_notes`. The Reports page triggers that
-job via `POST /api/jobs/run-forward-etl`. Idempotent by construction — the MERGE
-on `note_id` is a no-op when no new history rows exist.
+Chose **Pattern A (psycopg + MERGE INTO Delta)**. A serverless notebook job
+(`lakebase/forward_etl/pattern_a_psycopg/merge_into_gold.py`) connects to
+Lakebase via psycopg, reads `*_staging WHERE processed = false`, builds a Spark
+DataFrame, `MERGE`s it into `gold.customer_notes` / `gold.customer_segment_overrides`
+(keyed on `note_id` / `customer_id`), then sets `processed = true` on the staged
+rows. The Reports page triggers it via `POST /api/jobs/run-forward-etl`.
+Idempotent by construction — only `processed = false` rows are read and the MERGE
+keys on the PK, so re-running with no new staged rows is a no-op.
+
+**Why not Pattern B (Lakehouse Sync / Lakebase CDF):** that feature requires an
+**Autoscaling Postgres 17** instance and is UI-only Public Preview; `capstone-pg`
+is **provisioned Postgres 16**, so CDF cannot be enabled on it (verified via
+`get_database_instance` → `pg_version: PG_VERSION_16`, and the SDK/CLI/REST expose
+no CDF enablement path). Pattern A needs no extra Databricks feature and runs on
+the existing instance.
 
 ---
 

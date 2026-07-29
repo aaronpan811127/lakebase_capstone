@@ -35,6 +35,39 @@ resources:
         branch: ${var.git_branch}
         source_code_path: capstone-scaffold/app
 
+      # Env is driven by bundle variables here (this file IS bundle-processed, so
+      # ${var.x} / ${workspace.host} resolve). The committed app/app.yaml carries
+      # the same keys as a standalone fallback; these bundle-provided values win
+      # at deploy time so nothing is hardcoded per-environment.
+      config:
+        env:
+          - name: DATABRICKS_HOST
+            value: ${workspace.host}
+          - name: CAPSTONE_CATALOG
+            value: ${var.catalog}
+          - name: CAPSTONE_SCHEMA
+            value: ${var.schema}
+          - name: WAREHOUSE_ID
+            value: ${var.warehouse_id}
+          - name: PGHOST
+            value: ${var.pghost}
+          - name: PGDATABASE
+            value: ${var.pg_database}
+          - name: PG_INSTANCE_NAME
+            value: ${var.lakebase_instance}
+          - name: PG_UC_CATALOG
+            value: ${var.pg_uc_catalog}
+          - name: SECRET_SCOPE
+            value: ${var.secret_scope}
+          - name: PARENT_PATH
+            value: ${var.parent_path}
+          - name: DASHBOARD_ID
+            value: ${var.dashboard_id}
+          - name: GENIE_SPACE_ID
+            value: ${var.genie_space_id}
+          - name: FORWARD_ETL_JOB_ID
+            value: ${resources.jobs.forward_etl_job.id}
+
       user_api_scopes:
         - sql
         - dashboards.genie

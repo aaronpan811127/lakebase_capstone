@@ -32,9 +32,24 @@ variables:
   catalog:
     description: Unity Catalog catalog holding gold Delta tables
     default: "lakebase_capstone_catalog"
+  schema:
+    description: Gold schema
+    default: "gold"
   pg_uc_catalog:
     description: UC catalog that fronts the Lakebase instance
     default: "capstone_lb_ap"
+  pghost:
+    description: Lakebase Postgres read-write DNS
+    default: "ep-floral-mode-d17a5gyd.database.us-west-2.cloud.databricks.com"
+  pg_database:
+    description: Lakebase Postgres database name
+    default: "capstone_db"
+  secret_scope:
+    description: Secret scope for the capstone
+    default: "capstone-aaron-pan"
+  parent_path:
+    description: Workspace parent path
+    default: "/Workspace/Shared/capstone"
   git_repo_url:
     description: GitHub repo the git-source app pulls from (your fork)
     default: "https://github.com/aaronpan811127/lakebase_capstone"

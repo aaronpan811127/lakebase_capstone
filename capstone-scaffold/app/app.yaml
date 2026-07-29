@@ -3,9 +3,12 @@
 # `command` runs the FastAPI backend which serves the pre-built React bundle
 # from backend/static (committed — see T8), so there is no build step.
 #
-# `env` wires the static resource identifiers the backend reads via
-# backend/settings.py. FORWARD_ETL_JOB_ID is injected by the bundle at deploy
-# time via `valueFrom` referencing the job resource declared in resources/.
+# `env` wires the resource identifiers the backend reads via backend/settings.py.
+# NOTE: the DABs deploy overrides these from resources/app.yml `config.env`,
+# which is driven by bundle variables (${var.*}) — so per-environment values are
+# NOT hardcoded there. The values below are a standalone fallback (e.g. running
+# the app outside the bundle); app.yaml itself is git-pulled and does not support
+# ${var.*} templating, which is why the bundle carries the parameterized copy.
 #
 # `user_authorization` lists ONLY the two platform-allowed OBO scopes. The
 # platform auto-adds iam.current-user:read and iam.access-control:read. Any
