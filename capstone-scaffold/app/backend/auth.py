@@ -34,7 +34,15 @@ def obo_client(request: Request) -> WorkspaceClient:
             status_code=401,
             detail="Missing X-Forwarded-Access-Token (OBO not authorized for this request)",
         )
-    return WorkspaceClient(host=settings.databricks_host or None, token=token)
+    # Force PAT-only auth. In the Apps runtime the environment also carries the
+    # SP's OAuth creds (DATABRICKS_CLIENT_ID/SECRET); without auth_type="pat" the
+    # SDK sees both the OBO token and ambient OAuth and raises "more than one
+    # authorization method configured".
+    return WorkspaceClient(
+        host=settings.databricks_host or None,
+        token=token,
+        auth_type="pat",
+    )
 
 
 @lru_cache(maxsize=1)
