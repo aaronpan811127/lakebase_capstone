@@ -54,6 +54,12 @@ rows. The Reports page triggers it via `POST /api/jobs/run-forward-etl`.
 Idempotent by construction — only `processed = false` rows are read and the MERGE
 keys on the PK, so re-running with no new staged rows is a no-op.
 
+Verified live (serverless run, deps via the job `environments` spec — psycopg +
+databricks-sdk — not in-notebook `%pip`): a run promoted **3 notes + 1 override**
+into gold (`gold.customer_notes=3`, `gold.customer_segment_overrides=1`, confirmed
+by warehouse query), flipped all staged rows to `processed=true`, and a second run
+was a clean no-op (0 unprocessed).
+
 **Why not Pattern B (Lakehouse Sync / Lakebase CDF):** that feature requires an
 **Autoscaling Postgres 17** instance and is UI-only Public Preview; `capstone-pg`
 is **provisioned Postgres 16**, so CDF cannot be enabled on it (verified via
