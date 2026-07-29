@@ -12,6 +12,9 @@ dependencies = [
     "python-dotenv>=1.0",
     "pydantic-settings>=2.4",
     "cachetools>=5.5",
+    # Pin anyio: the 4.14.2 wheel intermittently times out on the Apps build's
+    # pypi-proxy; 4.6.2 is a well-cached, compatible version.
+    "anyio==4.6.2.post1",
 ]
 
 # Dev tools live in an optional extra so the Apps build (`uv sync`) does NOT
